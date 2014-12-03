@@ -1,0 +1,92 @@
+--- /dev/null
++++ b/CMakeLists.txt
+@@ -0,0 +1,32 @@
++cmake_minimum_required(VERSION 2.6)
++project(libresample)
++enable_testing()
++
++include(CheckIncludeFiles)
++include(CheckTypeSize)
++
++check_type_size("void *" POINTER_SIZE)
++
++check_include_files(inttypes.h HAVE_INTTYPES_H)
++
++find_library(HAVE_LIBM m)
++
++configure_file(${CMAKE_CURRENT_SOURCE_DIR}/src/configtemplate.h ${CMAKE_CURRENT_BINARY_DIR}/src/config.h)
++configure_file(${CMAKE_CURRENT_SOURCE_DIR}/libresample.pc.in ${CMAKE_CURRENT_BINARY_DIR}/libresample.pc)
++
++set(LIBRARY_OUTPUT_PATH "${CMAKE_CURRENT_BINARY_DIR}/lib")
++include_directories("${CMAKE_CURRENT_BINARY_DIR}/src")
++
++add_library(resample SHARED src/filterkit.c src/resample.c src/resamplesubs.c)
++set_target_properties(resample PROPERTIES VERSION 1.0 SOVERSION 1)
++set_target_properties(resample PROPERTIES CLEAN_DIRECT_OUTPUT 1)
++add_library(resample-static STATIC src/filterkit.c src/resample.c src/resamplesubs.c)
++set_target_properties(resample-static PROPERTIES OUTPUT_NAME "resample")
++set_target_properties(resample-static PROPERTIES CLEAN_DIRECT_OUTPUT 1)
++install(TARGETS resample resample-static LIBRARY DESTINATION lib ARCHIVE DESTINATION lib)
++
++install(FILES include/libresample.h DESTINATION include)
++
++install(FILES ${CMAKE_CURRENT_BINARY_DIR}/libresample.pc DESTINATION lib/pkgconfig)
++
++add_subdirectory(tests)
+--- /dev/null
++++ b/tests/CMakeLists.txt
+@@ -0,0 +1,24 @@
++enable_testing()
++
++include(FindPkgConfig)
++
++pkg_check_modules(SNDFILE sndfile)
++pkg_check_modules(SAMPLERATE samplerate)
++
++add_executable(testresample testresample.c)
++target_link_libraries(testresample resample-static m)
++add_test(testresample testresample DEPENDS resample)
++
++if(SNDFILE_FOUND)
++   add_executable(resample-sndfile resample-sndfile.c)
++   target_link_libraries(resample-sndfile resample sndfile m)
++   set_target_properties(resample-sndfile PROPERTIES COMPILE_FLAGS "${SNDFILE_CFLAGS}" LINK_FLAGS "${SNDFILE_LDFLAGS}")
++   install(TARGETS resample-sndfile RUNTIME DESTINATION bin)
++endif(SNDFILE_FOUND)
++
++if(SAMPLERATE_FOUND)
++   add_executable(compareresample compareresample.c)
++   target_link_libraries(compareresample resample-static samplerate m)
++   set_target_properties(compareresample PROPERTIES COMPILE_FLAGS "${SAMPLERATE_CFLAGS}" LINK_FLAGS "${SAMPLERATE_LDFLAGS}")
++   add_test(compareresample compareresample DEPENDS resample)
++endif(SAMPLERATE_FOUND)
+--- /dev/null
++++ b/libresample.pc.in
+@@ -0,0 +1,7 @@
++prefix=${CMAKE_INSTALL_PREFIX}
++
++Name: libresample
++Description: real-time audio resampling library
++Version: 0.1.3
++Cflags: ${CMAKE_C_FLAGS}
++Libs: ${CMAKE_SHARED_LINKER_FLAGS} -lm
+--- a/src/configtemplate.h
++++ b/src/configtemplate.h
+@@ -3,5 +3,5 @@
+    use this file as a template to create config.h
+ */
+ 
+-#undef HAVE_INTTYPES_H
++#cmakedefine HAVE_INTTYPES_H
+ 
+--- a/src/resample_defs.h
++++ b/src/resample_defs.h
+@@ -52,7 +52,7 @@
+ #define SGN(x)   ((x)<0   ?(-1):((x)==0?(0):(1)))
+ #endif
+ 
+-#if HAVE_INTTYPES_H
++#ifdef HAVE_INTTYPES_H
+   #include <inttypes.h>
+   typedef char           BOOL;
+   typedef int32_t        WORD;

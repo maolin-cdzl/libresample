@@ -1,0 +1,62 @@
+#!/usr/bin/make -f
+# -*- mode: makefile; coding: utf-8 -*-
+# Copyright © 2009-2010 Jonas Smedegaard <dr@jones.dk>
+# Description: Main Debian packaging script for libresample
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License as
+# published by the Free Software Foundation; either version 2, or (at
+# your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+-include /usr/share/cdbs/1/rules/upstream-tarball.mk
+include /usr/share/cdbs/1/rules/utils.mk
+include /usr/share/cdbs/1/class/cmake.mk
+include /usr/share/cdbs/1/rules/debhelper.mk
+
+# Suppress optional build-dependencies
+CDBS_BUILD_DEPENDS_rules_upstream-tarball =
+CDBS_BUILD_DEPENDS_rules_utils_copyright-check =
+
+pkgbasename = libresample
+pkgname = $(pkgbasename)1
+libname = libresample
+
+DEB_UPSTREAM_URL = http://www-ccrma.stanford.edu/~jos/resample
+DEB_UPSTREAM_TARBALL_EXTENSION = tgz
+DEB_UPSTREAM_TARBALL_MD5 = 99bc5ea15ef76b83e5655a10968f674b
+
+DEB_MAKE_CHECK_TARGET = test
+
+DEB_SHLIBDEPS_LIBRARY_$(pkgname) = $(libname)
+
+DEB_DH_INSTALL_ARGS = --sourcedir=debian/tmp
+DEB_DH_MAKESHLIBS_ARGS = -Pdebian/$(cdbs_curpkg)
+
+# Let d-shlibs calculate development package dependencies
+#  and handle shared library install
+binary-post-install/$(pkgname):: debian/stamp-local-shlibs-$(libname)
+debian/stamp-local-shlibs-$(libname): binary-install/$(pkgname)
+	d-shlibmove --commit \
+		--movedev "debian/tmp/usr/include/*" usr/include/ \
+		--movedev "debian/tmp/usr/lib/pkgconfig/$(libname).pc" usr/lib/pkgconfig/ \
+		debian/tmp/usr/lib/$(libname).so
+	touch $@
+clean::
+	rm -f debian/stamp-local-shlibs-$(libname)
+
+# Needed by upstream build process
+CDBS_BUILD_DEPENDS += , cmake (>= 2.6), libsndfile-dev
+
+# Needed by upstream tests
+CDBS_BUILD_DEPENDS += , libsamplerate-dev
+
+# Needed for our packaging
+CDBS_BUILD_DEPENDS += , pkg-config, d-shlibs
